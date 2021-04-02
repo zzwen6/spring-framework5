@@ -1,7 +1,9 @@
 buildscript {
 	repositories {
+		jcenter()
 		maven { url "https://repo.spring.io/plugins-release" }
 		maven { url "https://maven.aliyun.com/repository/central" }
+		maven { url "https://repo.springsource.org/plugins-release" }
 		
 	}
 	dependencies {
@@ -149,7 +151,11 @@ configure(allprojects) { project ->
 	}
 
 	repositories {
-		maven { url "https://repo.spring.io/libs-release" }
+		jcenter()
+
+//		maven { url "https://repo.spring.io/libs-release" }
+		maven { url "https://repo.spring.io/libs-milestone" }
+//		maven { url "http://repo.springsource.org/libs-release" }
 		mavenLocal()
 	}
 
