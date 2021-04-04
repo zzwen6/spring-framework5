@@ -516,41 +516,75 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// 同步初始化，防止同个时间多个容器在初始化
 		synchronized (this.startupShutdownMonitor) {
 			// Prepare this context for refreshing.
+			// 容器初始化的前置操作：设置容器启动时间，验证等
 			prepareRefresh();
 
 			// Tell the subclass to refresh the internal bean factory.
+			// 获取一些配置工厂，执行预处理
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
+			// 设置classloader(用于加载bean)，设置表达式解析器(解析bean定义中的一些表达式)，添加属性编辑注册器(注册属性编辑器)
+			// 添加ApplicationContextAwareProcessor这个BeanPostProcessor。
+			// 取消ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware、ApplicationContextAware、
+			// EnvironmentAware这5个接口的自动注入。因为ApplicationContextAwareProcessor把这5个接口的实现工作做了
+			// 设置特殊的类型对应的bean。BeanFactory对应刚刚获取的BeanFactory；ResourceLoader、ApplicationEventPublisher、ApplicationContext这3个接口对应的bean都设置为当前的Spring容器
+			// 注入一些其它信息的bean，比如environment、systemProperties等
 			prepareBeanFactory(beanFactory);
 
 			try {
 				// Allows post-processing of the bean factory in context subclasses.
+				// 在BeanFactory设置之后执行的一些操作
+				// 不同的applicationContext会有不同的实现，实际运行时见子类实现
 				postProcessBeanFactory(beanFactory);
 
-				// Invoke factory processors registered as beans in the context.
+				/**
+				 * BeanFactoryPostProcessor：用来修改Spring容器中已经存在的bean的定义，使用ConfigurableListableBeanFactory对bean进行处理
+				 * BeanDefinitionRegistryPostProcessor：继承BeanFactoryPostProcessor，作用跟BeanFactoryPostProcessor一样，只不过是使用BeanDefinitionRegistry对bean进行处理
+				 *
+				 */
+				// 完成扫描
+				// 在Spring容器中找出实现了BeanFactoryPostProcessor接口的processor并执行。
+				// Spring容器会委托给PostProcessorRegistrationDelegate的invokeBeanFactoryPostProcessors方法执行
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
+				// 从Spring容器中找出的BeanPostProcessor接口的bean，并设置到BeanFactory的属性中。之后bean被实例化的时候会调用这个BeanPostProcessor
+
+				// 1先找出实现了PriorityOrdered接口的BeanPostProcessor并排序后加到BeanFactory的BeanPostProcessor集合中
+				// 2找出实现了Ordered接口的BeanPostProcessor并排序后加到BeanFactory的BeanPostProcessor集合中
+				// 3没有实现PriorityOrdered和Ordered接口的BeanPostProcessor加到BeanFactory的BeanPostProcessor集合中 (按指定顺序的放入 见其 registerBeanPostProcessors())
 				registerBeanPostProcessors(beanFactory);
 
-				// Initialize message source for this context.
+				// 国际化相关的属性初始化
 				initMessageSource();
 
-				// Initialize event multicaster for this context.
+				// 初始化 applicationEvent事件广播器
 				initApplicationEventMulticaster();
 
-				// Initialize other special beans in specific context subclasses.
+				// 模板方法，不同的applicationContext实现不太一样
 				onRefresh();
 
 				// Check for listener beans and register them.
+				// 注册 监听器，加载spring默认的applicationContextListener ，再加earlyApplicationEvents(如果有)
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
-				// 完成bean的创建
+				// 完成所有【非懒加载】bean的初始化
+				// 实例化BeanFactory中已经被注册但是未实例化的所有实例
+				// 比如invokeBeanFactoryPostProcessors方法中根据各种注解解析出来的类，在这个时候都会被初始化。
+				// 实例化的过程各种BeanPostProcessor开始起作用
 				finishBeanFactoryInitialization(beanFactory);
 
-				// Last step: publish corresponding event.
+				// refresh做完之后需要做的其他事情。
+				/**
+				 * 初始化生命周期处理器，并设置到Spring容器中(LifecycleProcessor)
+				 * 调用生命周期处理器的onRefresh方法，这个方法会找出Spring容器中实现了SmartLifecycle接口的类并进行start方法的调用
+				 * 发布ContextRefreshedEvent事件告知对应的ApplicationListener进行响应的操作
+				 * 调用LiveBeansView的registerApplicationContext方法：如果设置了JMX相关的属性，则就调用该方法
+				 * 发布EmbeddedServletContainerInitializedEvent事件告知对应的ApplicationListener进行响应的操作
+				 *
+				 */
 				finishRefresh();
 			}
 
@@ -876,6 +910,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
+		// 初始化bean入口
 		beanFactory.preInstantiateSingletons();
 	}
 

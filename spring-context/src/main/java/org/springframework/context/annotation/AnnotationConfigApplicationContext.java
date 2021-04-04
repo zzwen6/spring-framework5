@@ -87,6 +87,10 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		this();
 		register(componentClasses);
 
+		// 可以手动关闭 是否允许循环依赖，默认值为true
+		// 这个只是说spring有这个功能，基本上不会关闭这个功能
+		// setAllowCircularReferences(false);
+
 		// 容器初始化入口
 		refresh();
 	}
