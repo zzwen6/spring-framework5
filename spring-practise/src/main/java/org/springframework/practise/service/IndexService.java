@@ -12,4 +12,14 @@ public class IndexService {
 	public IndexService() {
 		System.out.println("IndexService 初始化");
 	}
+
+	public UserService getUserService() {
+		return userService;
+	}
+
+	public void setUserService(UserService userService) {
+		this.userService = userService;
+		System.out.println("属性被注入");
+
+	}
 }
